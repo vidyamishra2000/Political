@@ -266,84 +266,45 @@
 const SUPABASE_URL =
 "https://dsydbczvyppqwxpeppoo.supabase.co";
 
-const SUPABASE_KEY =
+const SUPABASE_ANON_KEY =
 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzeWRiY3p2eXBwcXd4cGVwcG9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDIyMDUsImV4cCI6MjA5NTI3ODIwNX0.VAPLHPH7bpCPd5G7FMSjjSqgCPAvH8N9xmweivz4RWg";
 
-const client = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+let totalData = [];
 
-const searchInput =
-document.getElementById("search");
+async function loadInitialStats() {
 
-searchInput.addEventListener(
-  "input",
-  debounce(searchData, 400)
-);
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/leaders?select=id`,
+    {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization:
+          `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    }
+  );
 
-function debounce(func, delay){
+  const data = await response.json();
 
-  let timer;
-
-  return function(){
-
-    clearTimeout(timer);
-
-    timer = setTimeout(() => {
-      func();
-    }, delay);
-  }
+  document.getElementById("totalRecords").innerText =
+    data.length || 0;
 }
 
-async function searchData(){
+async function searchLeader() {
 
-  const query =
-  searchInput.value
-  .trim()
-  .toLowerCase();
+  const q =
+    document
+    .getElementById("searchInput")
+    .value
+    .trim()
+    .toLowerCase();
 
-  if(query.length < 2){
-
-    document.getElementById("tbody").innerHTML = `
-      <tr>
-        <td colspan="18" class="loading">
-          Type at least 2 letters to search...
-        </td>
-      </tr>
-    `;
-
-    document.getElementById("resultCount").innerText = 0;
-    document.getElementById("duplicateCount").innerText = 0;
-    document.getElementById("districtCount").innerText = 0;
-    document.getElementById("casteCount").innerText = 0;
-
-    return;
-  }
-
-  document.getElementById("tbody").innerHTML = `
-    <tr>
-      <td colspan="18" class="loading">
-        Searching Database...
-      </td>
-    </tr>
-  `;
-
-  const { data, error } =
-  await client
-  .from("leaders")
-  .select("*")
-  .ilike("search_text", `%${query}%`)
-  .limit(300);
-
-  if(error){
-
-    console.log(error);
+  if(q.length < 1){
 
     document.getElementById("tbody").innerHTML = `
       <tr>
-        <td colspan="18" class="loading">
-          ${error.message}
+        <td colspan="18">
+          Type Something...
         </td>
       </tr>
     `;
@@ -351,103 +312,118 @@ async function searchData(){
     return;
   }
 
-  let html = "";
+  const url =
+    `${SUPABASE_URL}/rest/v1/leaders?search_text=ilike.*${encodeURIComponent(q)}*&limit=100`;
 
-  let duplicateTotal = 0;
+  const response = await fetch(url, {
 
-  const districtSet = new Set();
-  const casteSet = new Set();
-
-  data.forEach(row => {
-
-    if(row.duplicate_count > 1){
-      duplicateTotal++;
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization:
+        `Bearer ${SUPABASE_ANON_KEY}`
     }
-
-    if(row.district){
-      districtSet.add(row.district);
-    }
-
-    if(row.caste){
-      casteSet.add(row.caste);
-    }
-
-    html += `
-
-    <tr>
-
-      <td><b>${row.name || ""}</b></td>
-
-      <td>${row.father_name || ""}</td>
-
-      <td>
-        <span class="badge">
-          ${row.mobile || ""}
-        </span>
-      </td>
-
-      <td>${row.district || ""}</td>
-
-      <td>${row.assembly || ""}</td>
-
-      <td>${row.loksabha || ""}</td>
-
-      <td>${row.anumandal || ""}</td>
-
-      <td>${row.block || ""}</td>
-
-      <td>${row.panchayat || ""}</td>
-
-      <td>${row.ward || ""}</td>
-
-      <td>${row.age || ""}</td>
-
-      <td>${row.gender || ""}</td>
-
-      <td>${row.category || ""}</td>
-
-      <td>${row.caste || ""}</td>
-
-      <td>${row.designation || ""}</td>
-
-      <td>${row.profile || ""}</td>
-
-      <td>${row.source_tab || ""}</td>
-
-      <td class="duplicate">
-        ${row.duplicate_count || 1}
-      </td>
-
-    </tr>
-
-    `;
   });
 
-  if(!html){
+  const data = await response.json();
 
-    html = `
+  renderTable(data);
+}
+
+function renderTable(data){
+
+  document.getElementById("searchCount").innerText =
+    data.length;
+
+  let duplicates = 0;
+
+  const districtSet = new Set();
+
+  const casteSet = new Set();
+
+  data.forEach(x => {
+
+    duplicates +=
+      Number(x.duplicate_count || 0);
+
+    if(x.district)
+      districtSet.add(x.district);
+
+    if(x.caste)
+      casteSet.add(x.caste);
+  });
+
+  document.getElementById("duplicateCount").innerText =
+    duplicates;
+
+  document.getElementById("districtCount").innerText =
+    districtSet.size;
+
+  document.getElementById("casteCount").innerText =
+    casteSet.size;
+
+  const tbody =
+    document.getElementById("tbody");
+
+  if(!data.length){
+
+    tbody.innerHTML = `
       <tr>
-        <td colspan="18" class="loading">
+        <td colspan="18">
           No Data Found
         </td>
       </tr>
     `;
+
+    return;
   }
 
-  document.getElementById("tbody").innerHTML = html;
+  tbody.innerHTML =
+    data.map(x => `
 
-  document.getElementById("resultCount")
-  .innerText = data.length;
+      <tr>
 
-  document.getElementById("duplicateCount")
-  .innerText = duplicateTotal;
+        <td>${x.name || ""}</td>
 
-  document.getElementById("districtCount")
-  .innerText = districtSet.size;
+        <td>${x.father_name || ""}</td>
 
-  document.getElementById("casteCount")
-  .innerText = casteSet.size;
+        <td>${x.mobile || ""}</td>
+
+        <td>${x.district || ""}</td>
+
+        <td>${x.assembly || ""}</td>
+
+        <td>${x.loksabha || ""}</td>
+
+        <td>${x.anumandal || ""}</td>
+
+        <td>${x.block || ""}</td>
+
+        <td>${x.panchayat || ""}</td>
+
+        <td>${x.ward || ""}</td>
+
+        <td>${x.age || ""}</td>
+
+        <td>${x.gender || ""}</td>
+
+        <td>${x.category || ""}</td>
+
+        <td>${x.caste || ""}</td>
+
+        <td>${x.designation || ""}</td>
+
+        <td>${x.profile || ""}</td>
+
+        <td>${x.source_tab || ""}</td>
+
+        <td>${x.duplicate_count || 1}</td>
+
+      </tr>
+
+    `).join("");
 }
+
+loadInitialStats();
 
 </script>
 
