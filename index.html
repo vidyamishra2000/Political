@@ -269,41 +269,24 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzeWRiY3p2eXBwcXd4cGVwcG9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDIyMDUsImV4cCI6MjA5NTI3ODIwNX0.VAPLHPH7bpCPd5G7FMSjjSqgCPAvH8N9xmweivz4RWg";
 
-let totalData = [];
+const searchInput =
+document.getElementById("searchInput");
 
-async function loadInitialStats() {
-
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/leaders?select=id`,
-    {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization:
-          `Bearer ${SUPABASE_ANON_KEY}`
-      }
-    }
-  );
-
-  const data = await response.json();
-
-  document.getElementById("totalRecords").innerText =
-    data.length || 0;
-}
+const tbody =
+document.getElementById("tbody");
 
 async function searchLeader() {
 
   const q =
-    document
-    .getElementById("searchInput")
-    .value
+    searchInput.value
     .trim()
     .toLowerCase();
 
   if(q.length < 1){
 
-    document.getElementById("tbody").innerHTML = `
+    tbody.innerHTML = `
       <tr>
-        <td colspan="18">
+        <td colspan="18" class="loading">
           Type Something...
         </td>
       </tr>
@@ -312,63 +295,101 @@ async function searchLeader() {
     return;
   }
 
-  const url =
-    `${SUPABASE_URL}/rest/v1/leaders?search_text=ilike.*${encodeURIComponent(q)}*&limit=100`;
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="18" class="loading">
+        Searching...
+      </td>
+    </tr>
+  `;
 
-  const response = await fetch(url, {
+  try{
 
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization:
-        `Bearer ${SUPABASE_ANON_KEY}`
-    }
-  });
+    const url =
+`${SUPABASE_URL}/rest/v1/leaders?select=*&search_text=ilike.*${encodeURIComponent(q)}*&limit=100`;
 
-  const data = await response.json();
+    const response =
+      await fetch(url, {
 
-  renderTable(data);
+      method:"GET",
+
+      headers:{
+        apikey: SUPABASE_ANON_KEY,
+        Authorization:
+          `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type":
+          "application/json"
+      }
+    });
+
+    const data =
+      await response.json();
+
+    renderTable(data);
+
+  }catch(err){
+
+    console.log(err);
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="18" class="loading">
+          Error Loading Data
+        </td>
+      </tr>
+    `;
+  }
 }
 
 function renderTable(data){
 
-  document.getElementById("searchCount").innerText =
-    data.length;
+  document.getElementById(
+    "searchCount"
+  ).innerText =
+    data.length || 0;
 
-  let duplicates = 0;
+  let duplicate = 0;
 
-  const districtSet = new Set();
+  const districts =
+    new Set();
 
-  const casteSet = new Set();
+  const castes =
+    new Set();
 
-  data.forEach(x => {
+  data.forEach(x=>{
 
-    duplicates +=
-      Number(x.duplicate_count || 0);
+    duplicate +=
+      Number(
+        x.duplicate_count || 0
+      );
 
     if(x.district)
-      districtSet.add(x.district);
+      districts.add(x.district);
 
     if(x.caste)
-      casteSet.add(x.caste);
+      castes.add(x.caste);
   });
 
-  document.getElementById("duplicateCount").innerText =
-    duplicates;
+  document.getElementById(
+    "duplicateCount"
+  ).innerText =
+    duplicate;
 
-  document.getElementById("districtCount").innerText =
-    districtSet.size;
+  document.getElementById(
+    "districtCount"
+  ).innerText =
+    districts.size;
 
-  document.getElementById("casteCount").innerText =
-    casteSet.size;
-
-  const tbody =
-    document.getElementById("tbody");
+  document.getElementById(
+    "casteCount"
+  ).innerText =
+    castes.size;
 
   if(!data.length){
 
     tbody.innerHTML = `
       <tr>
-        <td colspan="18">
+        <td colspan="18" class="loading">
           No Data Found
         </td>
       </tr>
@@ -378,7 +399,7 @@ function renderTable(data){
   }
 
   tbody.innerHTML =
-    data.map(x => `
+    data.map(x=>`
 
       <tr>
 
@@ -423,10 +444,10 @@ function renderTable(data){
     `).join("");
 }
 
-loadInitialStats();
-document
-.getElementById("searchInput")
-.addEventListener("input", searchLeader);
+searchInput.addEventListener(
+  "input",
+  searchLeader
+);
 
 </script>
 
