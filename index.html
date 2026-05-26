@@ -1,215 +1,452 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Political Leader Intelligence Dashboard</title>
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<title>Political Leader Search</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-<script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
 
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+      font-family:'Inter',sans-serif;
+      background:#0f172a;
+      color:white;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:999;
+      background:rgba(15,23,42,0.95);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid rgba(255,255,255,0.1);
+      padding:20px;
+    }
+
+    .title{
+      font-size:32px;
+      font-weight:800;
+      margin-bottom:15px;
+      background:linear-gradient(to right,#60a5fa,#34d399);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .search-box{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .search-box input{
+      flex:1;
+      min-width:300px;
+      padding:16px 18px;
+      border:none;
+      border-radius:14px;
+      background:#1e293b;
+      color:white;
+      font-size:17px;
+      outline:none;
+    }
+
+    .search-box input::placeholder{
+      color:#94a3b8;
+    }
+
+    .stats-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:18px;
+      padding:20px;
+    }
+
+    .card{
+      background:linear-gradient(145deg,#111827,#1e293b);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;
+      padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .card-title{
+      font-size:14px;
+      color:#94a3b8;
+      margin-bottom:10px;
+    }
+
+    .card-value{
+      font-size:32px;
+      font-weight:800;
+      color:#f8fafc;
+    }
+
+    .table-section{
+      padding:0 20px 20px;
+    }
+
+    .table-container{
+      overflow:auto;
+      border-radius:20px;
+      background:#111827;
+      border:1px solid rgba(255,255,255,0.08);
+      box-shadow:0 10px 40px rgba(0,0,0,0.35);
+    }
+
+    table{
+      width:100%;
+      min-width:2200px;
+      border-collapse:collapse;
+    }
+
+    th{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background:#1e293b;
+      color:#f8fafc;
+      padding:14px;
+      text-align:left;
+      font-size:13px;
+      border-bottom:1px solid rgba(255,255,255,0.1);
+    }
+
+    td{
+      padding:12px;
+      border-bottom:1px solid rgba(255,255,255,0.05);
+      font-size:13px;
+      color:#e2e8f0;
+      vertical-align:top;
+    }
+
+    tr:hover{
+      background:#172554;
+    }
+
+    .duplicate{
+      color:#f87171;
+      font-weight:700;
+    }
+
+    .loading{
+      padding:40px;
+      text-align:center;
+      font-size:20px;
+      color:#94a3b8;
+    }
+
+    .badge{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#1d4ed8;
+      font-size:12px;
+      font-weight:600;
+    }
+
+    @media(max-width:768px){
+
+      .title{
+        font-size:24px;
+      }
+
+      .search-box input{
+        min-width:100%;
+      }
+    }
+
+  </style>
 </head>
+<body>
 
-<body class="bg-gray-100 p-5">
+<div class="topbar">
 
-<div class="max-w-7xl mx-auto">
-
-  <h1 class="text-3xl font-bold mb-5">
-    Political Leader Search
-  </h1>
-
-  <input
-    id="search"
-    type="text"
-    placeholder="Search Name, Mobile, Caste, Panchayat..."
-    class="w-full p-4 border rounded text-lg"
-  >
-
-  <div class="mt-5 text-sm text-gray-500">
-    Type at least 2 letters
+  <div class="title">
+    Political Leader Intelligence Dashboard
   </div>
 
-  <div id="loading" class="mt-5 hidden">
-    Searching...
+  <div class="search-box">
+
+    <input
+      type="text"
+      id="search"
+      placeholder="Search Name, Mobile, Caste, District, Panchayat, Block, Assembly..."
+    />
+
   </div>
 
-  <div id="results" class="mt-5 grid gap-4"></div>
+</div>
+
+<div class="stats-grid">
+
+  <div class="card">
+    <div class="card-title">Search Results</div>
+    <div class="card-value" id="resultCount">0</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Duplicate Contacts</div>
+    <div class="card-value" id="duplicateCount">0</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Unique Districts</div>
+    <div class="card-value" id="districtCount">0</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Unique Castes</div>
+    <div class="card-value" id="casteCount">0</div>
+  </div>
+
+</div>
+
+<div class="table-section">
+
+  <div class="table-container">
+
+    <table>
+
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Father Name</th>
+          <th>Mobile</th>
+          <th>District</th>
+          <th>Assembly</th>
+          <th>Loksabha</th>
+          <th>Anumandal</th>
+          <th>Block</th>
+          <th>Panchayat</th>
+          <th>Ward</th>
+          <th>Age</th>
+          <th>Gender</th>
+          <th>Category</th>
+          <th>Caste</th>
+          <th>Designation</th>
+          <th>Profile</th>
+          <th>Source Tab</th>
+          <th>Duplicate Count</th>
+        </tr>
+      </thead>
+
+      <tbody id="tbody">
+
+        <tr>
+          <td colspan="18" class="loading">
+            Type at least 2 letters to search...
+          </td>
+        </tr>
+
+      </tbody>
+
+    </table>
+
+  </div>
 
 </div>
 
 <script>
 
 const SUPABASE_URL =
-  "YOUR_SUPABASE_URL";
+"https://dsydbczvyppqwxpeppoo.supabase.co";
 
 const SUPABASE_KEY =
-  "YOUR_SUPABASE_ANON_KEY";
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzeWRiY3p2eXBwcXd4cGVwcG9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDIyMDUsImV4cCI6MjA5NTI3ODIwNX0.VAPLHPH7bpCPd5G7FMSjjSqgCPAvH8N9xmweivz4RWg";
 
-const client =
-  supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
+const client = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
-const input =
-  document.getElementById('search');
+const searchInput =
+document.getElementById("search");
 
-let timeout = null;
+searchInput.addEventListener(
+  "input",
+  debounce(searchData, 400)
+);
 
-input.addEventListener('keyup', () => {
+function debounce(func, delay){
 
-  clearTimeout(timeout);
+  let timer;
 
-  timeout = setTimeout(() => {
+  return function(){
 
-    searchData();
+    clearTimeout(timer);
 
-  }, 400);
-});
-
-async function searchData() {
-
-  const q =
-    input.value.trim();
-
-  if(q.length < 2) {
-
-    document.getElementById('results')
-      .innerHTML = "";
-
-    return;
+    timer = setTimeout(() => {
+      func();
+    }, delay);
   }
-
-  document.getElementById('loading')
-    .classList.remove('hidden');
-
-  const searchQuery =
-    q
-    .split(" ")
-    .join(" & ");
-
-  const { data, error } =
-    await client
-    .from('leaders')
-    .select('*')
-    .textSearch(
-      'search_text',
-      searchQuery
-    )
-    .limit(100);
-
-  document.getElementById('loading')
-    .classList.add('hidden');
-
-  showResults(data || []);
 }
 
-function showResults(data) {
+async function searchData(){
 
-  const results =
-    document.getElementById('results');
+  const query =
+  searchInput.value
+  .trim()
+  .toLowerCase();
 
-  results.innerHTML = "";
+  if(query.length < 2){
 
-  if(data.length === 0) {
+    document.getElementById("tbody").innerHTML = `
+      <tr>
+        <td colspan="18" class="loading">
+          Type at least 2 letters to search...
+        </td>
+      </tr>
+    `;
 
-    results.innerHTML = `
-      <div class="bg-red-100 p-5 rounded">
-        No Data Found
-      </div>
+    document.getElementById("resultCount").innerText = 0;
+    document.getElementById("duplicateCount").innerText = 0;
+    document.getElementById("districtCount").innerText = 0;
+    document.getElementById("casteCount").innerText = 0;
+
+    return;
+  }
+
+  document.getElementById("tbody").innerHTML = `
+    <tr>
+      <td colspan="18" class="loading">
+        Searching Database...
+      </td>
+    </tr>
+  `;
+
+  const { data, error } =
+  await client
+  .from("leaders")
+  .select("*")
+  .ilike("search_text", `%${query}%`)
+  .limit(300);
+
+  if(error){
+
+    console.log(error);
+
+    document.getElementById("tbody").innerHTML = `
+      <tr>
+        <td colspan="18" class="loading">
+          ${error.message}
+        </td>
+      </tr>
     `;
 
     return;
   }
 
-  data.forEach(r => {
+  let html = "";
 
-    results.innerHTML += `
+  let duplicateTotal = 0;
 
-    <div class="bg-white p-5 rounded shadow">
+  const districtSet = new Set();
+  const casteSet = new Set();
 
-      <div class="grid md:grid-cols-3 gap-3">
+  data.forEach(row => {
 
-        <div>
-          <b>Name:</b><br>
-          ${r.name || ''}
-        </div>
+    if(row.duplicate_count > 1){
+      duplicateTotal++;
+    }
 
-        <div>
-          <b>Mobile:</b><br>
-          ${r.mobile || ''}
-        </div>
+    if(row.district){
+      districtSet.add(row.district);
+    }
 
-        <div>
-          <b>Father Name:</b><br>
-          ${r.father_name || ''}
-        </div>
+    if(row.caste){
+      casteSet.add(row.caste);
+    }
 
-        <div>
-          <b>District:</b><br>
-          ${r.district || ''}
-        </div>
+    html += `
 
-        <div>
-          <b>Assembly:</b><br>
-          ${r.assembly || ''}
-        </div>
+    <tr>
 
-        <div>
-          <b>Loksabha:</b><br>
-          ${r.loksabha || ''}
-        </div>
+      <td><b>${row.name || ""}</b></td>
 
-        <div>
-          <b>Anumandal:</b><br>
-          ${r.anumandal || ''}
-        </div>
+      <td>${row.father_name || ""}</td>
 
-        <div>
-          <b>Block:</b><br>
-          ${r.block || ''}
-        </div>
+      <td>
+        <span class="badge">
+          ${row.mobile || ""}
+        </span>
+      </td>
 
-        <div>
-          <b>Panchayat:</b><br>
-          ${r.panchayat || ''}
-        </div>
+      <td>${row.district || ""}</td>
 
-        <div>
-          <b>Caste:</b><br>
-          ${r.caste || ''}
-        </div>
+      <td>${row.assembly || ""}</td>
 
-        <div>
-          <b>Category:</b><br>
-          ${r.category || ''}
-        </div>
+      <td>${row.loksabha || ""}</td>
 
-        <div>
-          <b>Designation:</b><br>
-          ${r.designation || ''}
-        </div>
+      <td>${row.anumandal || ""}</td>
 
-        <div>
-          <b>Duplicate Count:</b><br>
-          ${r.duplicate_count || ''}
-        </div>
+      <td>${row.block || ""}</td>
 
-        <div>
-          <b>Source Tab:</b><br>
-          ${r.source_tab || ''}
-        </div>
+      <td>${row.panchayat || ""}</td>
 
-      </div>
+      <td>${row.ward || ""}</td>
 
-    </div>
- 
+      <td>${row.age || ""}</td>
+
+      <td>${row.gender || ""}</td>
+
+      <td>${row.category || ""}</td>
+
+      <td>${row.caste || ""}</td>
+
+      <td>${row.designation || ""}</td>
+
+      <td>${row.profile || ""}</td>
+
+      <td>${row.source_tab || ""}</td>
+
+      <td class="duplicate">
+        ${row.duplicate_count || 1}
+      </td>
+
+    </tr>
+
     `;
   });
+
+  if(!html){
+
+    html = `
+      <tr>
+        <td colspan="18" class="loading">
+          No Data Found
+        </td>
+      </tr>
+    `;
+  }
+
+  document.getElementById("tbody").innerHTML = html;
+
+  document.getElementById("resultCount")
+  .innerText = data.length;
+
+  document.getElementById("duplicateCount")
+  .innerText = duplicateTotal;
+
+  document.getElementById("districtCount")
+  .innerText = districtSet.size;
+
+  document.getElementById("casteCount")
+  .innerText = casteSet.size;
 }
 
 </script>
