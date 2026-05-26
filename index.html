@@ -277,7 +277,7 @@ document.getElementById("tbody");
 
 async function searchLeader() {
 
-  const q =
+  let q =
     searchInput.value
     .trim()
     .toLowerCase();
@@ -295,6 +295,11 @@ async function searchLeader() {
     return;
   }
 
+  // MOBILE SEARCH CLEAN
+
+  const mobileSearch =
+    q.replace(/\D/g,'');
+
   tbody.innerHTML = `
     <tr>
       <td colspan="18" class="loading">
@@ -305,8 +310,23 @@ async function searchLeader() {
 
   try{
 
-    const url =
-`${SUPABASE_URL}/rest/v1/leaders?select=*&search_text=ilike.*${encodeURIComponent(q)}*&limit=100`;
+    let url = "";
+
+    // IF NUMBER SEARCH
+
+    if(mobileSearch.length >= 3){
+
+      url =
+`${SUPABASE_URL}/rest/v1/leaders?select=*&mobile=ilike.*${mobileSearch}*&limit=100`;
+
+    }else{
+
+      // TEXT SEARCH
+
+      url =
+`${SUPABASE_URL}/rest/v1/leaders?select=*&or=(name.ilike.*${encodeURIComponent(q)}*,district.ilike.*${encodeURIComponent(q)}*,block.ilike.*${encodeURIComponent(q)}*)&limit=100`;
+
+    }
 
     const response =
       await fetch(url, {
