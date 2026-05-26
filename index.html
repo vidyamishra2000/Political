@@ -184,7 +184,7 @@
 
     <input
       type="text"
-      id="search"
+      id="searchInput"
       placeholder="Search Name, Mobile, Caste, District, Panchayat, Block, Assembly..."
     />
 
@@ -196,7 +196,7 @@
 
   <div class="card">
     <div class="card-title">Search Results</div>
-    <div class="card-value" id="resultCount">0</div>
+    <div class="card-value" id="searchCount">0</div>
   </div>
 
   <div class="card">
@@ -424,6 +424,9 @@ function renderTable(data){
 }
 
 loadInitialStats();
+document
+.getElementById("searchInput")
+.addEventListener("input", searchLeader);
 
 </script>
 
