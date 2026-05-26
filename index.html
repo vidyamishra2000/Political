@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Political Leader Search</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+</head>
+
+<body class="bg-gray-100 p-5">
+
+<div class="max-w-7xl mx-auto">
+
+  <h1 class="text-3xl font-bold mb-5">
+    Political Leader Search
+  </h1>
+
+  <input
+    id="search"
+    type="text"
+    placeholder="Search Name, Mobile, Caste, Panchayat..."
+    class="w-full p-4 border rounded text-lg"
+  >
+
+  <div class="mt-5 text-sm text-gray-500">
+    Type at least 2 letters
+  </div>
+
+  <div id="loading" class="mt-5 hidden">
+    Searching...
+  </div>
+
+  <div id="results" class="mt-5 grid gap-4"></div>
+
+</div>
+
+<script>
+
+const SUPABASE_URL =
+  "YOUR_SUPABASE_URL";
+
+const SUPABASE_KEY =
+  "YOUR_SUPABASE_ANON_KEY";
+
+const client =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+const input =
+  document.getElementById('search');
+
+let timeout = null;
+
+input.addEventListener('keyup', () => {
+
+  clearTimeout(timeout);
+
+  timeout = setTimeout(() => {
+
+    searchData();
+
+  }, 400);
+});
+
+async function searchData() {
+
+  const q =
+    input.value.trim();
+
+  if(q.length < 2) {
+
+    document.getElementById('results')
+      .innerHTML = "";
+
+    return;
+  }
+
+  document.getElementById('loading')
+    .classList.remove('hidden');
+
+  const searchQuery =
+    q
+    .split(" ")
+    .join(" & ");
+
+  const { data, error } =
+    await client
+    .from('leaders')
+    .select('*')
+    .textSearch(
+      'search_text',
+      searchQuery
+    )
+    .limit(100);
+
+  document.getElementById('loading')
+    .classList.add('hidden');
+
+  showResults(data || []);
+}
+
+function showResults(data) {
+
+  const results =
+    document.getElementById('results');
+
+  results.innerHTML = "";
+
+  if(data.length === 0) {
+
+    results.innerHTML = `
+      <div class="bg-red-100 p-5 rounded">
+        No Data Found
+      </div>
+    `;
+
+    return;
+  }
+
+  data.forEach(r => {
+
+    results.innerHTML += `
+
+    <div class="bg-white p-5 rounded shadow">
+
+      <div class="grid md:grid-cols-3 gap-3">
+
+        <div>
+          <b>Name:</b><br>
+          ${r.name || ''}
+        </div>
+
+        <div>
+          <b>Mobile:</b><br>
+          ${r.mobile || ''}
+        </div>
+
+        <div>
+          <b>Father Name:</b><br>
+          ${r.father_name || ''}
+        </div>
+
+        <div>
+          <b>District:</b><br>
+          ${r.district || ''}
+        </div>
+
+        <div>
+          <b>Assembly:</b><br>
+          ${r.assembly || ''}
+        </div>
+
+        <div>
+          <b>Loksabha:</b><br>
+          ${r.loksabha || ''}
+        </div>
+
+        <div>
+          <b>Anumandal:</b><br>
+          ${r.anumandal || ''}
+        </div>
+
+        <div>
+          <b>Block:</b><br>
+          ${r.block || ''}
+        </div>
+
+        <div>
+          <b>Panchayat:</b><br>
+          ${r.panchayat || ''}
+        </div>
+
+        <div>
+          <b>Caste:</b><br>
+          ${r.caste || ''}
+        </div>
+
+        <div>
+          <b>Category:</b><br>
+          ${r.category || ''}
+        </div>
+
+        <div>
+          <b>Designation:</b><br>
+          ${r.designation || ''}
+        </div>
+
+        <div>
+          <b>Duplicate Count:</b><br>
+          ${r.duplicate_count || ''}
+        </div>
+
+        <div>
+          <b>Source Tab:</b><br>
+          ${r.source_tab || ''}
+        </div>
+
+      </div>
+
+    </div>
+
+    `;
+  });
+}
+
+</script>
+
+</body>
+</html>
