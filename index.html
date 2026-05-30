@@ -207,6 +207,31 @@ tr:hover{
 
   </div>
 
+  <div style="margin-top:15px">
+
+<textarea
+ id="bulkMobileInput"
+ placeholder="Paste Mobile Numbers Here (One Per Line)"
+ style="
+ width:100%;
+ height:120px;
+ background:#1e293b;
+ color:white;
+ border:none;
+ border-radius:12px;
+ padding:12px;
+ font-size:14px;
+ "
+></textarea>
+
+<div style="margin-top:10px">
+<button onclick="bulkMobileSearch()">
+Bulk Mobile Search
+</button>
+</div>
+
+</div>
+
   <div class="export-buttons">
 
     <button onclick="downloadCSV()">
@@ -220,7 +245,28 @@ tr:hover{
     <button onclick="downloadPDF()">
       Download PDF
     </button>
+<textarea
+ id="bulkMobileInput"
+ placeholder="Paste Mobile Numbers Here (One Per Line)"
+ style="
+ width:100%;
+ height:120px;
+ background:#1e293b;
+ color:white;
+ border:none;
+ border-radius:12px;
+ padding:12px;
+ font-size:14px;
+ "
+></textarea>
 
+<div style="margin-top:10px">
+<button onclick="bulkMobileSearch()">
+Bulk Mobile Search
+</button>
+</div>
+
+    
   </div>
 
 </div>
@@ -631,7 +677,87 @@ async function downloadPDF(){
     "leaders_data.pdf"
   );
 }
+async function bulkMobileSearch(){
 
+  const raw =
+    document
+    .getElementById("bulkMobileInput")
+    .value
+    .trim();
+
+  if(!raw){
+    alert("Paste Mobile Numbers");
+    return;
+  }
+
+  const mobiles =
+    raw
+    .split(/\s+/)
+    .map(x => x.replace(/\D/g,""))
+    .filter(x => x.length > 0);
+
+  if(!mobiles.length){
+    alert("No Mobile Found");
+    return;
+  }
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="18" class="loading">
+        Searching Bulk Numbers...
+      </td>
+    </tr>
+  `;
+
+  try{
+
+    let allData = [];
+
+    const chunkSize = 50;
+
+    for(let i=0;i<mobiles.length;i+=chunkSize){
+
+      const chunk =
+        mobiles.slice(i,i+chunkSize);
+
+      const orFilter =
+        chunk
+        .map(x=>`mobile.eq.${x}`)
+        .join(",");
+
+      const url =
+`${SUPABASE_URL}/rest/v1/leaders?select=*&or=(${orFilter})`;
+
+      const response =
+        await fetch(url,{
+          headers:{
+            apikey:SUPABASE_ANON_KEY,
+            Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+
+      const data =
+        await response.json();
+
+      allData =
+        allData.concat(data);
+
+    }
+
+    currentResults = allData;
+
+    renderTable(allData);
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Search Failed");
+
+  }
+
+}
+  
 </script>
 
 </body>
