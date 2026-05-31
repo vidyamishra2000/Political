@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Bulk Mobile Search</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+body{
+font-family:Arial,sans-serif;
+background:#0f172a;
+color:white;
+padding:20px;
+}
+
+.topbar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:20px;
+}
+
+.home-btn{
+padding:10px 16px;
+border:none;
+border-radius:10px;
+background:#2563eb;
+color:white;
+cursor:pointer;
+font-weight:700;
+}
+
+.title{
+font-size:28px;
+font-weight:800;
+}
+
+.card{
+background:#1e293b;
+padding:20px;
+border-radius:16px;
+margin-bottom:20px;
+}
+
+textarea{
+width:100%;
+height:250px;
+background:#111827;
+color:white;
+border:none;
+padding:15px;
+border-radius:12px;
+resize:vertical;
+font-size:14px;
+}
+
+button{
+padding:12px 18px;
+border:none;
+border-radius:12px;
+background:#2563eb;
+color:white;
+font-weight:700;
+cursor:pointer;
+}
+
+button:hover{
+opacity:.9;
+}
+
+.stats{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:15px;
+margin-top:20px;
+}
+
+.stat{
+background:#111827;
+padding:15px;
+border-radius:12px;
+}
+
+.value{
+font-size:28px;
+font-weight:800;
+margin-top:8px;
+}
+
+.table-container{
+overflow:auto;
+margin-top:20px;
+background:#111827;
+border-radius:16px;
+padding:10px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th{
+background:#1e293b;
+padding:12px;
+text-align:left;
+}
+
+td{
+padding:10px;
+border-bottom:1px solid rgba(255,255,255,.05);
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="topbar">
+
+<button
+class="home-btn"
+onclick="location.href='index.html'">
+
+← Home
+
+</button>
+
+<div class="title">
+
+Bulk Mobile Search
+
+</div>
+
+</div>
+
+<div class="card">
+
+<h3>
+Paste Mobile Numbers
+</h3>
+
+<br>
+
+<textarea
+id="mobileInput"
+placeholder="One Mobile Per Line">
+</textarea>
+
+<br><br>
+
+<button onclick="bulkSearch()">
+
+Search
+
+</button>
+
+</div>
+
+<div class="stats">
+
+<div class="stat">
+Found
+<div
+class="value"
+id="foundCount">
+0
+</div>
+</div>
+
+<div class="stat">
+Not Found
+<div
+class="value"
+id="notFoundCount">
+0
+</div>
+</div>
+
+<div class="stat">
+Coverage
+<div
+class="value"
+id="coverage">
+0%
+</div>
+</div>
+
+</div>
+
+<div class="table-container">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Name</th>
+<th>Mobile</th>
+<th>District</th>
+<th>Assembly</th>
+
+</tr>
+
+</thead>
+
+<tbody id="tbody">
+
+</tbody>
+
+</table>
+
+</div>
+
+<script>
+
+const SUPABASE_URL =
+"https://dsydbczvyppqwxpeppoo.supabase.co";
+
+const SUPABASE_ANON_KEY =
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzeWRiY3p2eXBwcXd4cGVwcG9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDIyMDUsImV4cCI6MjA5NTI3ODIwNX0.VAPLHPH7bpCPd5G7FMSjjSqgCPAvH8N9xmweivz4RWg";
+
+async function bulkSearch(){
+
+const numbers=
+document
+.getElementById(
+'mobileInput'
+)
+.value
+.split('\n')
+.map(x=>x.trim())
+.filter(x=>x);
+
+if(!numbers.length){
+return;
+}
+
+let found=0;
+
+let notFound=0;
+
+let html='';
+
+for(const mobile of numbers){
+
+const res=
+await fetch(
+
+`${SUPABASE_URL}/rest/v1/leaders?mobile=eq.${mobile}&select=*`,
+
+{
+headers:{
+apikey:SUPABASE_ANON_KEY,
+Authorization:
+`Bearer ${SUPABASE_ANON_KEY}`
+}
+}
+
+);
+
+const data=
+await res.json();
+
+if(data.length){
+
+found++;
+
+const x=data[0];
+
+html+=`
+
+<tr>
+
+<td>${x.name||''}</td>
+
+<td>${x.mobile||''}</td>
+
+<td>${x.district||''}</td>
+
+<td>${x.assembly||''}</td>
+
+</tr>
+
+`;
+
+}else{
+
+notFound++;
+
+html+=`
+
+<tr>
+
+<td colspan="4">
+
+${mobile}
+(Not Found)
+
+</td>
+
+</tr>
+
+`;
+
+}
+
+}
+
+document
+.getElementById(
+'tbody'
+)
+.innerHTML=html;
+
+document.getElementById('foundCount').innerText = found;
+
+document.getElementById('notFoundCount').innerText = notFound;
+
+const coverage =
+Math.round((found / numbers.length) * 100);
+
+document.getElementById('coverage').innerText =
+coverage + '%';
+}
+
+</script>
+
+</body>
+
+</html>
