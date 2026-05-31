@@ -235,6 +235,9 @@ const SUPABASE_ANON_KEY =
 
 async function bulkSearch(){
 
+  const tbody =
+document.getElementById('tbody');
+  
 const numbers=
 document
 .getElementById(
@@ -254,7 +257,10 @@ let found=0;
 let notFound=0;
 
 let html='';
-
+  
+tbody.innerHTML =
+'<tr><td colspan="4">Searching...</td></tr>';
+  
 for(const mobile of numbers){
 
 const res=
