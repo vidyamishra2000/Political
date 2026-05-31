@@ -1,1 +1,638 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <title>Political Leader Intelligence Dashboard</title> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"> <style> *{ margin:0; padding:0; box-sizing:border-box; } body{ font-family:'Inter',sans-serif; background:#0f172a; color:white; min-height:100vh; overflow-x:hidden; } .topbar{ position:sticky; top:0; z-index:999; background:rgba(15,23,42,0.95); backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,0.1); padding:20px; } .title{ font-size:32px; font-weight:800; margin-bottom:15px; background:linear-gradient(to right,#60a5fa,#34d399); -webkit-background-clip:text; -webkit-text-fill-color:transparent; } .search-box{ display:flex; gap:12px; flex-wrap:wrap; } .search-box input{ flex:1; min-width:300px; padding:16px 18px; border:none; border-radius:14px; background:#1e293b; color:white; font-size:17px; outline:none; } .search-box input::placeholder{ color:#94a3b8; } .export-buttons{ display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; } .export-buttons button{ padding:12px 18px; border:none; border-radius:12px; background:#2563eb; color:white; font-weight:700; cursor:pointer; } .export-buttons button:hover{ opacity:0.9; } .stats-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; padding:20px; } .card{ background:linear-gradient(145deg,#111827,#1e293b); border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,0.25); } .card-title{ font-size:14px; color:#94a3b8; margin-bottom:10px; } .card-value{ font-size:32px; font-weight:800; color:#f8fafc; } .table-section{ padding:0 20px 20px; } .table-container{ overflow:auto; border-radius:20px; background:#111827; border:1px solid rgba(255,255,255,0.08); box-shadow:0 10px 40px rgba(0,0,0,0.35); } table{ width:100%; min-width:2200px; border-collapse:collapse; } th{ position:sticky; top:0; z-index:10; background:#1e293b; color:#f8fafc; padding:14px; text-align:left; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.1); } td{ padding:12px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px; color:#e2e8f0; vertical-align:top; } tr:hover{ background:#172554; } .loading{ padding:40px; text-align:center; font-size:20px; color:#94a3b8; } @media(max-width:768px){ .title{ font-size:24px; } .search-box input{ min-width:100%; } } </style> </head> <body> <div class="topbar"> <div class="title"> Political Leader Intelligence Dashboard </div> <div class="search-box"> <input type="text" id="searchInput" placeholder="Search Name, Mobile, District, Block..." /> </div> <div class="export-buttons"> <button onclick="downloadCSV()"> Download CSV </button> <button onclick="downloadExcel()"> Download Excel </button> <button onclick="downloadPDF()"> Download PDF </button> </div> </div> <div class="stats-grid"> <div class="card"> <div class="card-title"> Search Results </div> <div class="card-value" id="searchCount"> 0 </div> </div> <div class="card"> <div class="card-title"> Duplicate Contacts </div> <div class="card-value" id="duplicateCount"> 0 </div> </div> <div class="card"> <div class="card-title"> Unique Districts </div> <div class="card-value" id="districtCount"> 0 </div> </div> <div class="card"> <div class="card-title"> Unique Castes </div> <div class="card-value" id="casteCount"> 0 </div> </div> </div> <div class="table-section"> <div class="table-container"> <table> <thead> <tr> <th>Name</th> <th>Father Name</th> <th>Mobile</th> <th>District</th> <th>Assembly</th> <th>Loksabha</th> <th>Anumandal</th> <th>Block</th> <th>Panchayat</th> <th>Ward</th> <th>Age</th> <th>Gender</th> <th>Category</th> <th>Caste</th> <th>Designation</th> <th>Profile</th> <th>Source Tab</th> <th>Duplicate Count</th> </tr> </thead> <tbody id="tbody"> <tr> <td colspan="18" class="loading"> Type Something To Search... </td> </tr> </tbody> </table> </div> </div> <script> const SUPABASE_URL = "https://dsydbczvyppqwxpeppoo.supabase.co"; const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzeWRiY3p2eXBwcXd4cGVwcG9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDIyMDUsImV4cCI6MjA5NTI3ODIwNX0.VAPLHPH7bpCPd5G7FMSjjSqgCPAvH8N9xmweivz4RWg"; const searchInput = document.getElementById("searchInput"); const tbody = document.getElementById("tbody"); let currentResults = []; async function searchLeader(){ let q = searchInput.value .trim() .toLowerCase(); if(q.length < 1){ tbody.innerHTML = <tr> <td colspan="18" class="loading"> Type Something... </td> </tr> ; return; } const mobileSearch = q.replace(/\D/g,''); tbody.innerHTML = <tr> <td colspan="18" class="loading"> Searching... </td> </tr> ; try{ let url = ""; if(mobileSearch.length >= 3){ url = ${SUPABASE_URL}/rest/v1/leaders?select=*&mobile=ilike.*${mobileSearch}*&limit=100; }else{ url = ${SUPABASE_URL}/rest/v1/leaders?select=*&or=(name.ilike.*${encodeURIComponent(q)}*,district.ilike.*${encodeURIComponent(q)}*,block.ilike.*${encodeURIComponent(q)}*)&limit=100; } const response = await fetch(url,{ method:"GET", headers:{ apikey: SUPABASE_ANON_KEY, Authorization: Bearer ${SUPABASE_ANON_KEY}, "Content-Type": "application/json" } }); const data = await response.json(); currentResults = data; renderTable(data); }catch(err){ console.log(err); tbody.innerHTML = <tr> <td colspan="18" class="loading"> Error Loading Data </td> </tr> ; } } function renderTable(data){ document.getElementById( "searchCount" ).innerText = data.length || 0; let duplicate = 0; const districts = new Set(); const castes = new Set(); data.forEach(x=>{ duplicate += Number( x.duplicate_count || 0 ); if(x.district) districts.add(x.district); if(x.caste) castes.add(x.caste); }); document.getElementById( "duplicateCount" ).innerText = duplicate; document.getElementById( "districtCount" ).innerText = districts.size; document.getElementById( "casteCount" ).innerText = castes.size; if(!data.length){ tbody.innerHTML = <tr> <td colspan="18" class="loading"> No Data Found </td> </tr> ; return; } tbody.innerHTML = data.map(x=> <tr> <td>${x.name || ""}</td> <td>${x.father_name || ""}</td> <td>${x.mobile || ""}</td> <td>${x.district || ""}</td> <td>${x.assembly || ""}</td> <td>${x.loksabha || ""}</td> <td>${x.anumandal || ""}</td> <td>${x.block || ""}</td> <td>${x.panchayat || ""}</td> <td>${x.ward || ""}</td> <td>${x.age || ""}</td> <td>${x.gender || ""}</td> <td>${x.category || ""}</td> <td>${x.caste || ""}</td> <td>${x.designation || ""}</td> <td>${x.profile || ""}</td> <td>${x.source_tab || ""}</td> <td>${x.duplicate_count || 1}</td> </tr> ).join(""); } searchInput.addEventListener( "input", searchLeader ); function downloadCSV(){ if(!currentResults.length){ alert("No Data"); return; } const headers = Object.keys(currentResults[0]); const rows = currentResults.map(x => headers.map(h => "${x[h] || ""}" ).join(",") ); const csv = [headers.join(","), ...rows] .join("\n"); const blob = new Blob([csv], { type:"text/csv" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "leaders_data.csv"; a.click(); } function downloadExcel(){ if(!currentResults.length){ alert("No Data"); return; } const ws = XLSX.utils.json_to_sheet( currentResults ); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet( wb, ws, "Leaders" ); XLSX.writeFile( wb, "leaders_data.xlsx" ); } async function downloadPDF(){ if(!currentResults.length){ alert("No Data"); return; } const { jsPDF } = window.jspdf; const doc = new jsPDF(); let y = 10; currentResults.forEach((x,i)=>{ doc.text( ${i+1}. ${x.name || ""} | ${x.mobile || ""}, 10, y ); y += 10; if(y > 280){ doc.addPage(); y = 10; } }); doc.save( "leaders_data.pdf" ); } </script> </body> </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Political Leader Intelligence Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:#0f172a;
+  color:white;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:999;
+  background:rgba(15,23,42,0.95);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(255,255,255,0.1);
+  padding:20px;
+}
+
+.title{
+  font-size:32px;
+  font-weight:800;
+  margin-bottom:15px;
+  background:linear-gradient(to right,#60a5fa,#34d399);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+.search-box{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.search-box input{
+  flex:1;
+  min-width:300px;
+  padding:16px 18px;
+  border:none;
+  border-radius:14px;
+  background:#1e293b;
+  color:white;
+  font-size:17px;
+  outline:none;
+}
+
+.search-box input::placeholder{
+  color:#94a3b8;
+}
+
+.export-buttons{
+  display:flex;
+  gap:10px;
+  margin-top:15px;
+  flex-wrap:wrap;
+}
+
+.export-buttons button{
+  padding:12px 18px;
+  border:none;
+  border-radius:12px;
+  background:#2563eb;
+  color:white;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.export-buttons button:hover{
+  opacity:0.9;
+}
+
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:18px;
+  padding:20px;
+}
+
+.card{
+  background:linear-gradient(145deg,#111827,#1e293b);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:18px;
+  padding:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+}
+
+.card-title{
+  font-size:14px;
+  color:#94a3b8;
+  margin-bottom:10px;
+}
+
+.card-value{
+  font-size:32px;
+  font-weight:800;
+  color:#f8fafc;
+}
+
+.table-section{
+  padding:0 20px 20px;
+}
+
+.table-container{
+  overflow:auto;
+  border-radius:20px;
+  background:#111827;
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 10px 40px rgba(0,0,0,0.35);
+}
+
+table{
+  width:100%;
+  min-width:2200px;
+  border-collapse:collapse;
+}
+
+th{
+  position:sticky;
+  top:0;
+  z-index:10;
+  background:#1e293b;
+  color:#f8fafc;
+  padding:14px;
+  text-align:left;
+  font-size:13px;
+  border-bottom:1px solid rgba(255,255,255,0.1);
+}
+
+td{
+  padding:12px;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+  font-size:13px;
+  color:#e2e8f0;
+  vertical-align:top;
+}
+
+tr:hover{
+  background:#172554;
+}
+
+.loading{
+  padding:40px;
+  text-align:center;
+  font-size:20px;
+  color:#94a3b8;
+}
+
+@media(max-width:768px){
+
+  .title{
+    font-size:24px;
+  }
+
+  .search-box input{
+    min-width:100%;
+  }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="topbar">
+
+  <div class="title">
+    Political Leader Intelligence Dashboard
+  </div>
+
+  <div class="search-box">
+
+    <input
+      type="text"
+      id="searchInput"
+      placeholder="Search Name, Mobile, District, Block..."
+    />
+
+  </div>
+
+  <div class="export-buttons">
+
+    <button onclick="downloadCSV()">
+      Download CSV
+    </button>
+
+    <button onclick="downloadExcel()">
+      Download Excel
+    </button>
+
+    <button onclick="downloadPDF()">
+      Download PDF
+    </button>
+
+  </div>
+
+</div>
+
+<div class="stats-grid">
+
+  <div class="card">
+    <div class="card-title">
+      Search Results
+    </div>
+    <div class="card-value" id="searchCount">
+      0
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      Duplicate Contacts
+    </div>
+    <div class="card-value" id="duplicateCount">
+      0
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      Unique Districts
+    </div>
+    <div class="card-value" id="districtCount">
+      0
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      Unique Castes
+    </div>
+    <div class="card-value" id="casteCount">
+      0
+    </div>
+  </div>
+
+</div>
+
+<div class="table-section">
+
+  <div class="table-container">
+
+    <table>
+
+      <thead>
+
+        <tr>
+
+          <th>Name</th>
+          <th>Father Name</th>
+          <th>Mobile</th>
+          <th>District</th>
+          <th>Assembly</th>
+          <th>Loksabha</th>
+          <th>Anumandal</th>
+          <th>Block</th>
+          <th>Panchayat</th>
+          <th>Ward</th>
+          <th>Age</th>
+          <th>Gender</th>
+          <th>Category</th>
+          <th>Caste</th>
+          <th>Designation</th>
+          <th>Profile</th>
+          <th>Source Tab</th>
+          <th>Duplicate Count</th>
+
+        </tr>
+
+      </thead>
+
+      <tbody id="tbody">
+
+        <tr>
+
+          <td colspan="18" class="loading">
+            Type Something To Search...
+          </td>
+
+        </tr>
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</div>
+
+<script>
+
+const SUPABASE_URL =
+"https://dsydbczvyppqwxpeppoo.supabase.co";
+
+const SUPABASE_ANON_KEY =
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzeWRiY3p2eXBwcXd4cGVwcG9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDIyMDUsImV4cCI6MjA5NTI3ODIwNX0.VAPLHPH7bpCPd5G7FMSjjSqgCPAvH8N9xmweivz4RWg";
+
+const searchInput =
+document.getElementById("searchInput");
+
+const tbody =
+document.getElementById("tbody");
+
+let currentResults = [];
+
+async function searchLeader(){
+
+  let q =
+    searchInput.value
+    .trim()
+    .toLowerCase();
+
+  if(q.length < 1){
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="18" class="loading">
+          Type Something...
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+  const mobileSearch =
+    q.replace(/\D/g,'');
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="18" class="loading">
+        Searching...
+      </td>
+    </tr>
+  `;
+
+  try{
+
+    let url = "";
+
+    if(mobileSearch.length >= 3){
+
+      url =
+`${SUPABASE_URL}/rest/v1/leaders?select=*&mobile=ilike.*${mobileSearch}*&limit=100`;
+
+    }else{
+
+      url =
+`${SUPABASE_URL}/rest/v1/leaders?select=*&or=(name.ilike.*${encodeURIComponent(q)}*,district.ilike.*${encodeURIComponent(q)}*,block.ilike.*${encodeURIComponent(q)}*)&limit=100`;
+
+    }
+
+    const response =
+      await fetch(url,{
+
+      method:"GET",
+
+      headers:{
+        apikey: SUPABASE_ANON_KEY,
+        Authorization:
+          `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type":
+          "application/json"
+      }
+
+    });
+
+    const data =
+      await response.json();
+
+    currentResults = data;
+
+    renderTable(data);
+
+  }catch(err){
+
+    console.log(err);
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="18" class="loading">
+          Error Loading Data
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function renderTable(data){
+
+  document.getElementById(
+    "searchCount"
+  ).innerText =
+    data.length || 0;
+
+  let duplicate = 0;
+
+  const districts =
+    new Set();
+
+  const castes =
+    new Set();
+
+  data.forEach(x=>{
+
+    duplicate +=
+      Number(
+        x.duplicate_count || 0
+      );
+
+    if(x.district)
+      districts.add(x.district);
+
+    if(x.caste)
+      castes.add(x.caste);
+
+  });
+
+  document.getElementById(
+    "duplicateCount"
+  ).innerText =
+    duplicate;
+
+  document.getElementById(
+    "districtCount"
+  ).innerText =
+    districts.size;
+
+  document.getElementById(
+    "casteCount"
+  ).innerText =
+    castes.size;
+
+  if(!data.length){
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="18" class="loading">
+          No Data Found
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+  tbody.innerHTML =
+    data.map(x=>`
+
+      <tr>
+
+        <td>${x.name || ""}</td>
+
+        <td>${x.father_name || ""}</td>
+
+        <td>${x.mobile || ""}</td>
+
+        <td>${x.district || ""}</td>
+
+        <td>${x.assembly || ""}</td>
+
+        <td>${x.loksabha || ""}</td>
+
+        <td>${x.anumandal || ""}</td>
+
+        <td>${x.block || ""}</td>
+
+        <td>${x.panchayat || ""}</td>
+
+        <td>${x.ward || ""}</td>
+
+        <td>${x.age || ""}</td>
+
+        <td>${x.gender || ""}</td>
+
+        <td>${x.category || ""}</td>
+
+        <td>${x.caste || ""}</td>
+
+        <td>${x.designation || ""}</td>
+
+        <td>${x.profile || ""}</td>
+
+        <td>${x.source_tab || ""}</td>
+
+        <td>${x.duplicate_count || 1}</td>
+
+      </tr>
+
+    `).join("");
+
+}
+
+searchInput.addEventListener(
+  "input",
+  searchLeader
+);
+
+function downloadCSV(){
+
+  if(!currentResults.length){
+    alert("No Data");
+    return;
+  }
+
+  const headers =
+    Object.keys(currentResults[0]);
+
+  const rows =
+    currentResults.map(x =>
+      headers.map(h =>
+        `"${x[h] || ""}"`
+      ).join(",")
+    );
+
+  const csv =
+    [headers.join(","), ...rows]
+    .join("\n");
+
+  const blob =
+    new Blob([csv], {
+      type:"text/csv"
+    });
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const a =
+    document.createElement("a");
+
+  a.href = url;
+
+  a.download =
+    "leaders_data.csv";
+
+  a.click();
+}
+
+function downloadExcel(){
+
+  if(!currentResults.length){
+    alert("No Data");
+    return;
+  }
+
+  const ws =
+    XLSX.utils.json_to_sheet(
+      currentResults
+    );
+
+  const wb =
+    XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    ws,
+    "Leaders"
+  );
+
+  XLSX.writeFile(
+    wb,
+    "leaders_data.xlsx"
+  );
+}
+
+async function downloadPDF(){
+
+  if(!currentResults.length){
+    alert("No Data");
+    return;
+  }
+
+  const { jsPDF } =
+    window.jspdf;
+
+  const doc =
+    new jsPDF();
+
+  let y = 10;
+
+  currentResults.forEach((x,i)=>{
+
+    doc.text(
+      `${i+1}. ${x.name || ""} | ${x.mobile || ""}`,
+      10,
+      y
+    );
+
+    y += 10;
+
+    if(y > 280){
+
+      doc.addPage();
+
+      y = 10;
+
+    }
+
+  });
+
+  doc.save(
+    "leaders_data.pdf"
+  );
+}
+
+</script>
+
+</body>
+</html>
