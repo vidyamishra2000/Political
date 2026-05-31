@@ -55,14 +55,15 @@ body{
 }
 
 .search-box{
-  display:flex;
-  gap:12px;
-  flex-wrap:wrap;
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px;
 }
 
 .search-box input{
-  flex:1;
-  min-width:300px;
+width:35%;
+min-width:280px;
   padding:16px 18px;
   border:none;
   border-radius:14px;
@@ -173,6 +174,43 @@ tr:hover{
   color:#94a3b8;
 }
 
+.menu-wrapper{
+position:relative;
+}
+
+.menu-btn{
+width:42px;
+height:42px;
+border:none;
+border-radius:10px;
+background:#2563eb;
+color:white;
+font-size:22px;
+cursor:pointer;
+}
+
+.menu-dropdown{
+display:none;
+position:absolute;
+right:0;
+top:50px;
+background:#1e293b;
+padding:10px;
+border-radius:12px;
+min-width:180px;
+z-index:99999;
+}
+
+.menu-wrapper:hover .menu-dropdown{
+display:block;
+}
+
+.menu-dropdown button{
+display:block;
+width:100%;
+margin-bottom:6px;
+}
+  
 @media(max-width:768px){
 
   .title{
@@ -197,15 +235,47 @@ tr:hover{
     Political Leader Intelligence Dashboard
   </div>
 
-  <div class="search-box">
+ <div class="search-box">
 
-    <input
-      type="text"
-      id="searchInput"
-      placeholder="Search Name, Mobile, District, Block..."
-    />
+<input
+type="text"
+id="searchInput"
+placeholder="Search Name, Mobile, District..."
+/>
 
-  </div>
+<div class="menu-wrapper">
+
+<button class="menu-btn">
+☰
+</button>
+
+<div class="menu-dropdown">
+
+<button onclick="location.href='dashboard.html'">
+Dashboard
+</button>
+
+<button onclick="location.href='tools.html'">
+Bulk Search
+</button>
+
+<button onclick="downloadExcel()">
+Download Excel
+</button>
+
+<button onclick="downloadCSV()">
+Download CSV
+</button>
+
+<button onclick="downloadPDF()">
+Download PDF
+</button>
+
+</div>
+
+</div>
+
+</div>
 
 <textarea
 id="bulkMobile"
