@@ -207,6 +207,33 @@ tr:hover{
 
   </div>
 
+<textarea
+id="bulkMobile"
+placeholder="Paste Mobile Numbers Here (One Per Line)"
+style="
+width:100%;
+height:120px;
+margin-top:15px;
+padding:12px;
+background:#1e293b;
+color:white;
+border:none;
+border-radius:12px;">
+</textarea>
+
+<button
+onclick="bulkSearch()"
+style="
+margin-top:10px;
+padding:12px 18px;
+border:none;
+border-radius:12px;
+background:#16a34a;
+color:white;
+font-weight:bold;">
+Bulk Mobile Search
+</button>
+  
   <div class="export-buttons">
 
     <button onclick="downloadCSV()">
@@ -220,6 +247,14 @@ tr:hover{
     <button onclick="downloadPDF()">
       Download PDF
     </button>
+
+    <button onclick="window.open('dashboard.html','_blank')">
+Dashboard
+</button>
+
+<button onclick="window.open('tools.html','_blank')">
+More Tools
+</button>
 
   </div>
 
@@ -370,12 +405,12 @@ async function searchLeader(){
     if(mobileSearch.length >= 3){
 
       url =
-`${SUPABASE_URL}/rest/v1/leaders?select=*&mobile=ilike.*${mobileSearch}*&limit=100`;
+`${SUPABASE_URL}/rest/v1/leaders?select=*&mobile=ilike.*${mobileSearch}*`;
 
     }else{
 
       url =
-`${SUPABASE_URL}/rest/v1/leaders?select=*&or=(name.ilike.*${encodeURIComponent(q)}*,district.ilike.*${encodeURIComponent(q)}*,block.ilike.*${encodeURIComponent(q)}*)&limit=100`;
+`${SUPABASE_URL}/rest/v1/leaders?select=*&or=(name.ilike.*${encodeURIComponent(q)}*,district.ilike.*${encodeURIComponent(q)}*,block.ilike.*${encodeURIComponent(q)}*)`;
 
     }
 
@@ -592,6 +627,80 @@ function downloadExcel(){
   );
 }
 
+async function bulkSearch(){
+
+const input =
+document
+.getElementById("bulkMobile")
+.value;
+
+const numbers =
+input
+.split(/\n|,|\s+/)
+.map(x=>x.trim())
+.filter(Boolean);
+
+if(!numbers.length){
+alert("Paste Mobile Numbers");
+return;
+}
+
+tbody.innerHTML=
+`
+<tr>
+<td colspan="18" class="loading">
+Searching...
+</td>
+</tr>
+`;
+
+let allData=[];
+
+for(let mobile of numbers){
+
+try{
+
+const response=
+await fetch(
+`${SUPABASE_URL}/rest/v1/leaders?mobile=eq.${mobile}&select=*`,
+{
+headers:{
+apikey:SUPABASE_ANON_KEY,
+Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+}
+});
+
+const data=
+await response.json();
+
+if(data.length){
+
+allData.push(...data);
+
+}else{
+
+allData.push({
+name:"NOT FOUND",
+mobile:mobile
+});
+
+}
+
+}catch(e){
+
+console.log(e);
+
+}
+
+}
+
+currentResults=
+allData;
+
+renderTable(allData);
+
+}
+  
 async function downloadPDF(){
 
   if(!currentResults.length){
